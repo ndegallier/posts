@@ -107,12 +107,11 @@ class TestAPI(unittest.TestCase):
         self.assertEqual(data["message"],
                          "Request must accept application/json data")
     
-    """def delete_post(self):
-         Deleting a single post 
-        response = self.client.delete("/api/posts/{}".format(id))
+    def delete_post(self):
+        """ Deleting a single post """
+        response = self.client.get("/api/posts/{}".format(id))
         
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.mimetype, "application/json")"""
+        self.assertEqual(response.status_code, 302)
     
     def test_get_posts_with_title(self):
         """ Filtering posts by title """
@@ -241,18 +240,19 @@ class TestAPI(unittest.TestCase):
     
     def test_edit_post(self):
         """ Editing the title and body of a specified post """
+        
         data = {
             "title": "Example post edit",
             "body": "Just a test edit"
         }
         
-        response = self.client.put("/api/post/<id>",
+        response = self.client.put("/api/post/{}/edit".format(id),
             data=json.dumps(data),
             content_type="application/json",
             headers=[("Accept", "application/json")]
             )
         
-        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.status_code, 302)
         self.assertEqual(response.mimetype, "application/json")
         self.assertEqual(urlparse(response.headers.get("Location")).path, "/api/posts/<id>")
         

@@ -1,12 +1,14 @@
 import json
 
-from flask import request, Response, url_for
+from flask import request, Response, url_for, redirect, render_template
 from jsonschema import validate, ValidationError
 
 from . import models
+from models import Post
 from . import decorators
 from posts import app
 from .database import session
+
 
 post_schema = {
     "properties": {
@@ -56,7 +58,7 @@ def post_get(id):
     data = json.dumps(post.as_dictionary())
     return Response(data, 200, mimetype="application/json")
 
-@app.route("/api/posts/<id>", methods=["DELETE"])
+@app.route("/api/posts/<id>/delete", methods=["GET"])
 def post_delete(id):
     """ Single post endpoint """
     # Get the post from the database
@@ -71,9 +73,10 @@ def post_delete(id):
 
     # Delete post from the database
     session.delete(post)
-    return session.commit()
+    session.commit()
     
-    # tests run ok but not sure if this is correct, both here and in the tests
+    return redirect(url_for("posts_get"), 302)
+    
 
 @app.route("/api/posts", methods=["POST"])
 @decorators.accept("application/json")
@@ -102,30 +105,21 @@ def posts_post():
     return Response(data, 201, headers=headers,
                     mimetype="application/json")
 
-@app.route("/api/post/<id>", methods=["PUT"])
+@app.route("/api/post/<id>/edit", methods=["GET", "PUT"])
 @decorators.accept("application/json")
 @decorators.require("application/json")
-def edits_post():
+def edits_post(id):
     """ Edit a post """
-    data = request.json
     
-    # Check that the JSON supplied is valid
-    # IF not return a 422 Unprocessable Entity
-    try:
-        validate(data, post_schema)
-    except ValidationError as error:
-        data = {"message": error.message}
-        return Response(json.dumps(data, 422, mimetype="application/json"))
+    if request.method == "GET":
+        post = session.query(models.Post).get(id)
+        return render_template("edit_entry.html", post=post)
     
-    # Query the post by its id and then update it with the edits
-    post = session.query(models.Post).filter(id == id)
-    post.title = data["title"]
-    post.body = data["body"]
-    session.commit()
-    
-    # Return a 204 Updated, containing the post as JSON and with the 
-    # Location header set to the location of the post
-    data = json.dumps(post.as_dictionary())
-    headers = {"Location": url_for("post_get", id=post.id)}
-    return Response(data, 204, headers=headers,
-                    mimetype="application/json")
+    elif request.method == "PUT":
+        # Query the post by its id and then update it with the edits
+        post=session.query(Post).filter(Post.id==id).one()
+        post.title = request.form["title"]
+        post.body = request.form["body"]
+        session.add(post)
+        session.commit()
+        return redirect(url_for("posts_get", 302))
